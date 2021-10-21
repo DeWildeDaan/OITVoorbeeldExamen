@@ -7,29 +7,55 @@ using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using VoorbeeldExamenDaan.Models;
+using System.Collections.Generic;
+using System.Data.SqlClient;
 
 namespace VoorbeeldExamenDaan
 {
     public static class Function1
     {
-        [FunctionName("Function1")]
-        public static async Task<IActionResult> Run(
-            [HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", Route = null)] HttpRequest req,
+        [FunctionName("GetPrices")]
+        public static async Task<IActionResult> GetPrices(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "v1/prices")] HttpRequest req,
             ILogger log)
         {
-            log.LogInformation("C# HTTP trigger function processed a request.");
 
-            string name = req.Query["name"];
+            try
+            {
+                List<Price> prices = new List<Price>();
+                string connectionstring = Environment.GetEnvironmentVariable("SQLSERVER");
 
-            string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
-            dynamic data = JsonConvert.DeserializeObject(requestBody);
-            name = name ?? data?.name;
 
-            string responseMessage = string.IsNullOrEmpty(name)
-                ? "This HTTP triggered function executed successfully. Pass a name in the query string or in the request body for a personalized response."
-                : $"Hello, {name}. This HTTP triggered function executed successfully.";
+                using (SqlConnection sqlConnection = new SqlConnection(connectionstring))
+                {
+                    await sqlConnection.OpenAsync();
+                    using (SqlCommand sqlCommand = new SqlCommand())
+                    {
+                        sqlCommand.Connection = sqlConnection;
+                        sqlCommand.CommandText = "SELECT * FROM Prices";
 
-            return new OkObjectResult(responseMessage);
+                        var sqlDataReader = await sqlCommand.ExecuteReaderAsync();
+                        while (await sqlDataReader.ReadAsync())
+                        {
+                            prices.Add(new Price()
+                            {
+                                Type = sqlDataReader["Type"].ToString(),
+                                ItemPrice = double.Parse(sqlDataReader["Price"].ToString())
+                            });
+                        }
+                    }
+                }
+
+                return new OkObjectResult(prices);
+            }
+            catch (Exception ex)
+            {
+
+                log.LogError(ex.ToString());
+                return new StatusCodeResult(500);
+                throw;
+            }
         }
     }
 }
