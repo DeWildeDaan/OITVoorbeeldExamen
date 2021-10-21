@@ -21,15 +21,18 @@ def on_message(client, userdata, msg):
 def get_prices():
     global eprijs
     global wprijs
-    #response = requests.get("")
-    #print(response.json())
-    eprijs = 1.0
-    wprijs = 1.0
+    response = requests.get("https://af-voorbeeldexamendaan.azurewebsites.net/api/v1/prices")
+    print(response.json())
+    for item in response.json():
+        if item["type"] == "water":
+            wprijs = item["itemPrice"]
+        else:
+            eprijs = item["itemPrice"]
  
 def menu(keuze):
     global eprijs
     global wprijs
-    
+
     aantal = 0
     if keuze == 9:
         sys.exit()
@@ -39,7 +42,7 @@ def menu(keuze):
         payload = {
             "Sensor": "water",
             "Amount": aantal,
-            "Price": prijs,
+            "Price": round(prijs, 2),
             "EMail": email
         }
         publish.single("/daandewilde", json.dumps(payload).encode("utf-8") , hostname="13.81.105.139")
@@ -49,7 +52,7 @@ def menu(keuze):
         payload = {
             "Sensor": "electricity",
             "Amount": aantal,
-            "Price": prijs,
+            "Price": round(prijs, 2),
             "EMail": email
         }
         publish.single("/daandewilde", json.dumps(payload).encode("utf-8") , hostname="13.81.105.139")
